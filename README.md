@@ -25,4 +25,4 @@ The scope of the project is to remain simple and not become too complex, however
 # Credits
 Lanecrest Tech © 2023
 
-This program is free software released under the BSD 3-clause License.
+This program is free software released under the BSD 3-Clause License.
