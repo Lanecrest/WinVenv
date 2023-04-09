@@ -11,7 +11,7 @@ The last main feature is the ability to create a new venv directly through the G
 # Screenshots
 [Screenshots](/screenshots)
 
-![Alt text](/screenshots/v1-0-0_main.png?raw=true "Main Window")
+![Alt text](/screenshots/v0-1-0_main.png?raw=true "Main Window")
 
 # Change Log
 [Change Log](CHANGELOG.md)
