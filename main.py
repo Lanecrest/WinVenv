@@ -8,7 +8,7 @@ class VenvManager(tk.Frame):
         super().__init__(master)
         self.master = master
         self.app_name = 'WinVenv'
-        self.ver_no = '0.1.0'
+        self.ver_no = '0.1.1'
         self.py_ext = ('.py', '.pyw', '.pyc')
         self.root_dir = os.getcwd()
 
