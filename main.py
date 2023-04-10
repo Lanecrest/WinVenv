@@ -9,8 +9,8 @@ class VenvManager(tk.Frame):
         self.master = master
         self.app_name = 'WinVenv'
         self.ver_no = '0.1.0'
-        self.root_dir = os.getcwd()
         self.py_ext = ('.py', '.pyw', '.pyc')
+        self.root_dir = os.getcwd()
 
         self.master.title(f'{self.app_name}')
         self.file_menu()
@@ -59,14 +59,14 @@ class VenvManager(tk.Frame):
         # clear existing options
         self.venv_bar.delete(0, tk.END)
         # find folders with activate.bat script and add as menu options
-        environments = False
+        venv_exist = False
         for folder in os.listdir(self.root_dir):
             script_folder_path = os.path.join(self.root_dir, folder)
             activate_path = os.path.join(script_folder_path, 'Scripts', 'activate.bat')
             if os.path.exists(activate_path):
                 self.venv_bar.add_command(label=folder, command=lambda name=folder, path=script_folder_path: self.activate_venv(name, path))
-                environments = True
-        if not environments:
+                venv_exist = True
+        if not venv_exist:
                 self.venv_bar.add_command(label='No Environments')
 
     # about message box
@@ -98,21 +98,22 @@ class VenvManager(tk.Frame):
         item = self.treeview.selection()[0]
         values = self.treeview.item(item, 'values')
         if values:
-            path = os.path.abspath(os.path.join(*values))
+            file_name = os.path.abspath(os.path.join(*values))
             self.clipboard_clear()
-            self.clipboard_append(f'"{path}"')
+            self.clipboard_append(f'"{file_name}"')
+            print(f'Copied \033[96m{file_name}\033[0m to clipboard.')
 
     # open a command window with the activated environment
     def activate_venv(self, venv_name, venv_path):
         # activate selected virtual environment in command prompt
         activate_path = os.path.join(venv_path, 'Scripts', 'activate.bat')
-        print(f'Opening virtual environment "{venv_name}" in a new shell. Please wait...')
+        print(f'Opening \033[93m{venv_name}\033[0m virtual environment in a new shell...')
         os.system(f'start cmd /k ""{activate_path}" && pip freeze"')  # list the installed packages
         print('Done.')
 
     # function to initialize/reload the file tree
     def init_treeview(self, event=None):
-        print('Loading file tree. Please wait...')
+        print('Loading file tree...')
         self.load_treeview(self.root_dir)
         self.venv_menu()  # refresh the "Environments" menu
         print('Done.')
@@ -142,7 +143,7 @@ class VenvManager(tk.Frame):
         if values:
             file_name = os.path.join(*values)
             folder_path = os.path.dirname(file_name)
-            print(f'Loading file {file_name}...')
+            print(f'Opening file \033[96m{file_name}\033[0m...')
             # if python file, open using the venv of the folder the file is in
             if os.path.isfile(file_name) and file_name.endswith(self.py_ext):
                 script_folder_path = os.path.dirname(file_name)
@@ -150,6 +151,8 @@ class VenvManager(tk.Frame):
                 while script_folder_path:
                     activate_path = os.path.join(script_folder_path, 'Scripts', 'activate.bat')
                     if os.path.exists(activate_path):
+                        venv_name = os.path.basename(script_folder_path)
+                        print(f'Loading with \033[93m{venv_name}\033[0m virtual environment...')
                         os.chdir(script_folder_path)  # change working directory to script folder
                         os.system(f'start cmd /k "cd /d "{script_folder_path}" && call "{activate_path}" && cd "{folder_path}" && python "{file_name}" && exit"')
                         break
@@ -171,7 +174,7 @@ class VenvManager(tk.Frame):
         if venv_name:
             # create the venv in the venv manager directory
             venv_path = os.path.join(self.root_dir, venv_name)
-            print(f'Creating virtual environment "{venv_name}." Please wait...')
+            print(f'Creating \033[93m{venv_name}\033[0m virtual environment...')
             os.system(f'py -m venv "{venv_path}"')
             self.init_treeview()
 
