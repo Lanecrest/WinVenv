@@ -73,9 +73,9 @@ class VenvManager(tk.Frame):
     def help_about(self, event=None):
         tk.messagebox.showinfo(f'About {self.app_name}',
                                f'{self.app_name} is a Python virtual environment (venv) manager for Windows. The goal is to make it easy to maintain and execute Python files in different venvs.\n\n'
-                               'If you place a Python script into a venv folder, you can execute it easily using that venv through the simple GUI by double clicking it.\n\n'
-                               'You can also launch a shell using a venv through the "Environments" menu which will display what packages are installed and you can launch files through the shell.\n\n'
-                               'Please note that renaming a venv folder will break it, so it is recommended to just create a new venv if you must change the name.\n\n'
+                               'Right clicking a python file or a requirements.txt will give you the option to run those files directly within a venv if they are located in a venv directory.\n\n'
+                               'You can also launch a shell using a venv through the "Environments" menu which will display what packages are installed upon loading.\n\n'
+                               'Please note that renaming or moving a venv folder will break it, so it is recommended to just create a new venv if you need to make changes.\n\n'
                                f'{self.app_name} {self.ver_no} © 2023 Lanecrest Tech')
     
     # define links for "Help" menu options
@@ -89,26 +89,90 @@ class VenvManager(tk.Frame):
 
     # create a pop-up context menu for right click
     def popup_menu(self, event):
+        if not self.treeview.selection():
+            return  # do nothing if no item is selected
+        file_id = self.treeview.selection()[0]
+        file = self.treeview.item(file_id)
+        # check if the selected item is a file or directory
+        if file['values']:
+            file_path = file['values'][0]
+        else:
+            file_path = None
+        file_name = file['text']
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label='Copy Selected Path', command=self.copy_path)
+        # add run in venv option for python files
+        if file_name.endswith(self.py_ext):
+            menu.add_command(label='Run in Venv', command=self.openin_venv)
+        # add installation option for requirements.txt files
+        elif file_name == 'requirements.txt':
+            menu.add_command(label='Install Requirements', command=self.install_requirements)
         menu.post(event.x_root, event.y_root)
 
     # copy path of tree node to clipboard
     def copy_path(self):
-        item = self.treeview.selection()[0]
-        values = self.treeview.item(item, 'values')
+        file = self.treeview.selection()[0]
+        values = self.treeview.item(file, 'values')
         if values:
             file_name = os.path.abspath(os.path.join(*values))
             self.clipboard_clear()
             self.clipboard_append(f'"{file_name}"')
             print(f'Copied \033[96m{file_name}\033[0m to clipboard.')
 
+    # open python file in venv
+    def openin_venv(self):
+        file = self.treeview.selection()[0]
+        values = self.treeview.item(file, 'values')
+        if values:
+            file_name = os.path.join(*values)
+            folder_path = os.path.dirname(file_name)
+            batch_folder_path = os.path.dirname(file_name)
+            # keep going up a directory until a Scripts\activate.bat is found
+            while batch_folder_path:
+                activate_path = os.path.join(batch_folder_path, 'Scripts', 'activate.bat')
+                if os.path.exists(activate_path):
+                    venv_name = os.path.basename(batch_folder_path)
+                    print(f'Loading with \033[93m{venv_name}\033[0m virtual environment...')
+                    os.chdir(batch_folder_path)  # change working directory to script folder
+                    os.system(f'start cmd /k "cd /d "{batch_folder_path}" && call "{activate_path}" && cd "{folder_path}" && python "{file_name}" && exit"')
+                    print('Done.')
+                    break
+                # open the file normally if no activate.bat file is found
+                elif batch_folder_path == os.path.dirname(self.root_dir):
+                    print('No venv found. Make sure file is in a virtual environment directory.')
+                    break
+                batch_folder_path = os.path.dirname(batch_folder_path)
+
+    # install requirements.txt
+    def install_requirements(self):
+        file = self.treeview.selection()[0]
+        values = self.treeview.item(file, 'values')
+        if values:
+            file_name = os.path.join(*values)
+            folder_path = os.path.dirname(file_name)
+            batch_folder_path = os.path.dirname(file_name)
+            # keep going up a directory until a Scripts\activate.bat is found
+            while batch_folder_path:
+                activate_path = os.path.join(batch_folder_path, 'Scripts', 'activate.bat')
+                if os.path.exists(activate_path):
+                    venv_name = os.path.basename(batch_folder_path)
+                    print(f'Installing packages in \033[93m{venv_name}\033[0m virtual environment...')
+                    os.chdir(batch_folder_path)  # change working directory to script folder
+                    os.system(f'start cmd /k "cd /d "{batch_folder_path}" && call "{activate_path}" && cd "{folder_path}" && pip install -r requirements.txt && exit"')
+                    print('Done')
+                    break
+                # open the file normally if no activate.bat file is found
+                elif batch_folder_path == os.path.dirname(self.root_dir):
+                    print('No venv was found. Make sure file is in a virtual environment directory.')
+                    break
+                batch_folder_path = os.path.dirname(batch_folder_path)
+
     # open a command window with the activated environment
     def activate_venv(self, venv_name, venv_path):
         # activate selected virtual environment in command prompt
         activate_path = os.path.join(venv_path, 'Scripts', 'activate.bat')
         print(f'Opening \033[93m{venv_name}\033[0m virtual environment in a new shell...')
-        os.system(f'start cmd /k ""{activate_path}" && pip freeze"')  # list the installed packages
+        os.system(f'start cmd /k ""{activate_path}" && pip freeze && cd /d "{venv_path}""')  # list the installed packages
         print('Done.')
 
     # function to initialize/reload the file tree
@@ -130,11 +194,14 @@ class VenvManager(tk.Frame):
                 # check if file is a .py file
                 if item.endswith(self.py_ext):
                     tags = ('python',)
+                elif os.path.basename(item) == 'requirements.txt':
+                    tags = ('requirements')
                 else:
                     tags = ()
                 self.treeview.insert(parent, 'end', text=item, values=[path, item], tags=tags)
         self.treeview.tag_configure('folder', font=('', 8, 'bold'))
         self.treeview.tag_configure('python', foreground='blue')
+        self.treeview.tag_configure('requirements', foreground='green')
         
     # function to handle opening files from the file tree    
     def open_file(self, event):
@@ -144,27 +211,8 @@ class VenvManager(tk.Frame):
             file_name = os.path.join(*values)
             folder_path = os.path.dirname(file_name)
             print(f'Opening file \033[96m{file_name}\033[0m...')
-            # if python file, open using the venv of the folder the file is in
-            if os.path.isfile(file_name) and file_name.endswith(self.py_ext):
-                script_folder_path = os.path.dirname(file_name)
-                # keep going up a directory until a Scripts\activate.bat is found
-                while script_folder_path:
-                    activate_path = os.path.join(script_folder_path, 'Scripts', 'activate.bat')
-                    if os.path.exists(activate_path):
-                        venv_name = os.path.basename(script_folder_path)
-                        print(f'Loading with \033[93m{venv_name}\033[0m virtual environment...')
-                        os.chdir(script_folder_path)  # change working directory to script folder
-                        os.system(f'start cmd /k "cd /d "{script_folder_path}" && call "{activate_path}" && cd "{folder_path}" && python "{file_name}" && exit"')
-                        break
-                    # open the file if no activate.bat file is found
-                    elif script_folder_path == os.path.dirname(self.root_dir):
-                        os.startfile(file_name)
-                        break
-                    script_folder_path = os.path.dirname(script_folder_path)
-            # open any other file type normally
-            elif os.path.isfile(file_name):
-                os.chdir(folder_path)
-                os.startfile(file_name)
+            os.chdir(folder_path)
+            os.startfile(file_name)
             print('Done.')
 
     # function to create a new virtual environment
